@@ -66,6 +66,10 @@ with explicit annotations is decided by those alone; otherwise the namespace rul
 apply; with no rules anywhere the secret is visible to all authenticated users
 (open by default, restricted once rules are added). Until any admin is configured,
 every authenticated user is treated as admin (bootstrap mode — set admins promptly).
+Creation is special: a new secret has no annotations yet, so creating in a
+namespace is decided by the namespace rules alone — the per-secret allowed
+groups/users you set in the form only take effect _after_ the secret exists
+(the UI disables creation upfront when the rules exclude you).
 
 **Optional K8s-native impersonation**: if your API server trusts the same OIDC
 issuer as the app, set `KRYPTON_IMPERSONATION=true` and Krypton forwards
@@ -103,7 +107,9 @@ cluster with seeded fixtures plus Dex as a throwaway OIDC provider —
 see [`../sandbox/README.md`](../sandbox/README.md) (`make up`, then copy
 `sandbox/app.env.sandbox` to `app/.env`).
 
-Useful commands: `pnpm build`, `pnpm lint`, `pnpm start`.
+Useful commands: `pnpm build`, `pnpm lint`, `pnpm start`, `pnpm e2e`
+(visual Playwright suite over the production build; first run needs
+`pnpm exec playwright install chromium`).
 
 ## Deploy to Kubernetes / OpenShift
 

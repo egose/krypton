@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { IconKey, IconLogout, IconShieldLock } from '@tabler/icons-react';
-import { Button } from '@egose/shadcn-theme/components/ui/button';
+import { Button, buttonVariants } from '@egose/shadcn-theme/components/ui/button';
 import { Badge } from '@egose/shadcn-theme/components/ui/badge';
 import { api } from '@/lib/api-client';
 
@@ -50,11 +50,9 @@ export function Header() {
             </Button>
           </div>
         ) : (
-          <Button variant="primary" size="sm" asChild>
-            <a href="/login">
-              <IconKey size={15} /> Sign in with SSO
-            </a>
-          </Button>
+          <a href="/login" className={buttonVariants({ variant: 'primary', size: 'sm' })}>
+            <IconKey size={15} /> Sign in with SSO
+          </a>
         )}
       </div>
     </header>

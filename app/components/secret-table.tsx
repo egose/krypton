@@ -67,7 +67,7 @@ export function SecretTable({ namespace, secrets }: { namespace: string; secrets
                     </Link>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="secondary" appearance="outline" size="sm">
+                    <Badge variant="secondary" size="sm">
                       {s.type}
                     </Badge>
                   </TableCell>

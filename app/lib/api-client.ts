@@ -49,7 +49,9 @@ export const api = {
   namespaces: () => request<{ scope: string; namespaces: string[] }>('/api/namespaces'),
 
   listSecrets: (ns: string) =>
-    request<{ namespace: string; secrets: SecretSummary[] }>(`/api/namespaces/${encodeURIComponent(ns)}/secrets`),
+    request<{ namespace: string; secrets: SecretSummary[]; canCreate: boolean }>(
+      `/api/namespaces/${encodeURIComponent(ns)}/secrets`,
+    ),
   getSecret: (ns: string, name: string) =>
     request<{ secret: SecretDetail }>(`/api/namespaces/${encodeURIComponent(ns)}/secrets/${encodeURIComponent(name)}`),
   createSecret: (

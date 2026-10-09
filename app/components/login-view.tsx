@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { IconKey, IconShieldLock } from '@tabler/icons-react';
-import { Button } from '@egose/shadcn-theme/components/ui/button';
+import { buttonVariants } from '@egose/shadcn-theme/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@egose/shadcn-theme/components/ui/card';
 
 export function LoginView() {
@@ -31,11 +31,9 @@ export function LoginView() {
           <CardTitle>Single sign-on</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          <Button variant="primary" asChild>
-            <a href="/api/auth/login">
-              <IconKey size={16} /> Continue with SSO (OIDC)
-            </a>
-          </Button>
+          <a href="/api/auth/login" className={buttonVariants({ variant: 'primary' })}>
+            <IconKey size={16} /> Continue with SSO (OIDC)
+          </a>
           <p className="text-xs text-muted-foreground">
             Works with Keycloak, Entra ID, Okta, Google, or any OIDC provider. Users don&apos;t need cluster credentials
             — access is enforced from SSO groups via secret annotations.

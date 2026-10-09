@@ -1,9 +1,12 @@
-import { NextResponse } from 'next/server';
+import { connection, NextResponse } from 'next/server';
 import { config } from '@/lib/config';
 import { createSessionToken, DEV_USER, getAuthorizationUrl, isOidcConfigured, setSessionCookie } from '@/lib/auth';
 
 /** Start SSO login — or short-circuit to a dev session when AUTH_DISABLED. */
 export async function GET() {
+  // OIDC discovery must never run at build time (see /api/config): env at
+  // build time (e.g. sandbox http issuer) differs from deploy time.
+  await connection();
   if (config.authDisabled) {
     await setSessionCookie(await createSessionToken(DEV_USER));
     return NextResponse.redirect(new URL('/', config.appUrl));

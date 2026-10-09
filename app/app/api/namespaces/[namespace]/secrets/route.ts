@@ -19,6 +19,8 @@ export async function GET(_req: Request, ctx: RouteContext<'/api/namespaces/[nam
     return NextResponse.json({
       namespace,
       secrets: visible.map((s) => toSummary(namespace, s)),
+      // UX hint so the UI can disable creation upfront (POST still enforces).
+      canCreate: await canCreateInNamespace(user, namespace),
     });
   } catch (err) {
     return jsonError(err);
