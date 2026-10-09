@@ -1,0 +1,73 @@
+# Production example for `helm/main` on Kubernetes/OpenShift:
+# Namespace-scoped Krypton with OIDC SSO behind an OpenShift Route.
+# Usage (see helm/main/Makefile):
+#   cp values-k8s-prod.example.yaml values-<namespace>.secret.yaml  # then fill host/CIDRs
+#   make upgrade NAMESPACE=<app-namespace> IMAGE_TAG=<tag>  # or helm directly:
+#   helm upgrade --install krypton helm/main -n <app-namespace> \
+#     -f helm/main/values.yaml -f helm/main/values-<namespace>.secret.yaml \
+#     --set app.image.tag=<tag>
+# The OIDC/session secrets live in a kubectl-applied Secret
+# (app/k8s/secret-oidc.yaml), never in this file. This file only carries
+# env-specific non-secret overrides; it is gitignored (*.secret.yaml).
+global:
+  env: {}
+
+app:
+  enabled: true
+  envSecretName: krypton-oidc # pragma: allowlist secret
+  # Krypton is stateless (Kubernetes Secrets are the datastore), so more than
+  # one replica is always safe.
+  replicaCount: 2
+  image:
+    repository: ghcr.io/egose/krypton
+    pullPolicy: IfNotPresent
+  env:
+    KRYPTON_SCOPE: namespace
+    KRYPTON_ETCD_ENCRYPTED: 'true' # only once apiserver encryption (aescbc) is on
+    KRYPTON_IMPERSONATION: 'false'
+    KRYPTON_ADMIN_GROUPS: krypton-admin
+    KRYPTON_ACCESS_CONFIGMAP: krypton-access
+    OIDC_ISSUER: https://keycloak.example.com/realms/company
+    OIDC_CLIENT_ID: krypton
+    OIDC_SCOPES: openid profile email groups
+    OIDC_GROUPS_CLAIM: groups
+    OIDC_USERNAME_CLAIM: email
+    NEXT_PUBLIC_APP_URL: https://krypton.apps.example.com
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: app
+  route:
+    enabled: true
+    host: krypton.apps.example.com
+  # For a centralized multi-namespace dashboard instead, set KRYPTON_SCOPE to
+  # `cluster` above, rbac.scope to `cluster` below, and optionally narrow with
+  # KRYPTON_NAMESPACES="team-a,team-b".
+  rbac:
+    create: true
+    scope: namespace
+  accessConfig:
+    enabled: true
+    data:
+      production:
+        groups: [dev-team, database-admins]
+        users: [alice@company.com]
+
+# Egress for the external IdP (OIDC discovery/token/userinfo over 443). Note
+# allowKubeApiEgress already permits 443 egress; set it to false for tighter
+# rules restricted to the CIDRs below plus extraEgress API server CIDRs.
+networkPolicy:
+  allowOpenShiftIngress: true
+  app:
+    idpEgressIpBlocks:
+    - cidr: 203.0.113.10/32

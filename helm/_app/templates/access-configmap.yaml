@@ -1,0 +1,14 @@
+{{- if .Values.accessConfig.enabled -}}
+# Namespace-level ownership fallback for SSO users that have no cluster identity.
+# Per-secret annotations (krypton.io/allowed-groups / allowed-users) override these.
+# Namespaces absent from this map are open to all authenticated users until restricted.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.accessConfig.name }}
+  labels:
+    {{- include "_.labels" . | nindent 4 }}
+data:
+  {{ .Values.accessConfig.key }}: |
+    {{- toJson .Values.accessConfig.data | nindent 4 }}
+{{- end }}
