@@ -10,6 +10,8 @@ repos:
       - id: check-json
       - id: check-vcs-permalinks
       - id: check-yaml
+        # app/k8s + sandbox fixtures are multi-document (`---`-separated) manifests
+        args: [--allow-multiple-documents]
       - id: check-ast
       - id: end-of-file-fixer
       - id: trailing-whitespace
