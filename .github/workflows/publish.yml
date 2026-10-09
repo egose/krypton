@@ -1,0 +1,77 @@
+name: Publish Docker image
+
+on:
+  push:
+    tags:
+    - v*.*.*
+
+env:
+  DOCKER_REGISTRY: ghcr.io
+  IMAGE_NAME: egose/krypton
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-push:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+      security-events: read
+      attestations: read
+      id-token: write
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        ref: ${{ github.ref }}
+        fetch-depth: 0
+        fetch-tags: true
+        persist-credentials: false
+
+    - name: Derive image version and revision
+      id: release
+      run: |
+        version=${RELEASE_TAG#v}
+        image_version=${version//+/_}
+        core=${version%%[-+]*}
+        major=${core%%.*}
+        remainder=${core#*.}
+        minor=${remainder%%.*}
+        stable=true
+        [[ "${version%%+*}" != *-* ]] || stable=false
+        {
+          printf 'version=%s\n' "$version"
+          printf 'image-version=%s\n' "$image_version"
+          printf 'major=%s\n' "$major"
+          printf 'minor=%s\n' "$minor"
+          printf 'stable=%s\n' "$stable"
+          printf 'revision=%s\n' "$(git rev-parse HEAD)"
+        } >> "$GITHUB_OUTPUT"
+      env:
+        RELEASE_TAG: ${{ github.ref_name }}
+
+    - name: Build, scan, and publish verified image
+      uses: egose/actions/docker-build-push@2cddbcad7377a3b715a1f0bd3c5f0e4d448b2110
+      env:
+        RELEASE_TAG: ${{ github.ref_name }}
+        REVISION: ${{ steps.release.outputs.revision }}
+        VERSION: ${{ steps.release.outputs.version }}
+      with:
+        registry-url: ${{ env.DOCKER_REGISTRY }}
+        registry-username: ${{ github.actor }}
+        registry-password: ${{ secrets.GITHUB_TOKEN }}
+        image-name: ${{ env.IMAGE_NAME }}
+        metadata-tags: |
+          type=raw,value=latest
+          type=raw,value=${{ steps.release.outputs.image-version }}
+          type=raw,value=${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }},enable=${{ steps.release.outputs.stable }}
+          type=raw,value=${{ steps.release.outputs.major }},enable=${{ steps.release.outputs.stable }}
+        metadata-labels: |
+          org.opencontainers.image.version=${{ github.ref_name }}
+          org.opencontainers.image.revision=${{ steps.release.outputs.revision }}
+        docker-context: .
+        docker-file: Dockerfile
