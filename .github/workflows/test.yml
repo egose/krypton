@@ -1,0 +1,27 @@
+name: Lint and Test
+
+on:
+  pull_request:
+    paths-ignore:
+    - '**.md'
+  push:
+    paths-ignore:
+    - '**.md'
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+    - name: Setup Tools
+      uses: ./.github/actions/setup-tools
+
+    - name: Setup NPM packages
+      uses: ./.github/actions/setup-npm
+
+    - name: Run lint
+      run: |
+        pnpm lint
+        pnpm build
+      working-directory: app

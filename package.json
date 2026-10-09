@@ -1,0 +1,43 @@
+{
+  "name": "krypton",
+  "version": "0.0.0",
+  "description": "",
+  "type": "module",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "release": "release-it",
+    "changelog": "repo-toolkit-changelog",
+    "build-artifact": "repo-toolkit-build-artifact --config release-artifact.config.json",
+    "verify-artifact": "repo-toolkit-verify-artifact --config release-artifact.config.json"
+  },
+  "keywords": [],
+  "author": "Junmin Ahn",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/egose/krypton.git"
+  },
+  "bugs": {
+    "url": "https://github.com/egose/krypton/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@11.24.0",
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.2",
+    "@commitlint/config-conventional": "^21.2.2",
+    "@commitlint/format": "^21.2.2",
+    "@release-it/bumper": "^8.0.0",
+    "@repo-toolkit/changelog": "^0.41.1",
+    "@repo-toolkit/release-artifact": "^0.41.1",
+    "@types/node": "^26.2.0",
+    "globals": "^17.11.0",
+    "prettier": "4.0.0-alpha.13",
+    "release-it": "^21.0.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
+  }
+}

@@ -1,0 +1,6 @@
+# Byte-verified generator outputs (scripts/forge-environment.py --check).
+# Prettier reformatting changes file bytes and breaks VIS-05 manifest sha256.
+frontend/src/assets/tilemaps/town-square.json
+frontend/src/assets/tilemaps/west-field.json
+frontend/src/assets/tilesets/frontier-manifest.json
+frontend/src/assets/tilesets/frontier-24.png
