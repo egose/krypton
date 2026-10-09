@@ -36,7 +36,7 @@ export function NamespaceSelector({ value, onChange }: Props) {
         </SelectContent>
       </Select>
       {data && (
-        <Badge variant={data.scope === 'cluster' ? 'info' : 'secondary'} appearance="outline">
+        <Badge variant={data.scope === 'cluster' ? 'info' : 'secondary'}>
           {data.scope === 'cluster' ? 'cluster scope' : 'namespace scope'}
         </Badge>
       )}

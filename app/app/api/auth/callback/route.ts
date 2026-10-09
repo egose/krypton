@@ -1,8 +1,10 @@
-import { NextResponse } from 'next/server';
+import { connection, NextResponse } from 'next/server';
 import { config } from '@/lib/config';
 import { createSessionToken, handleOidcCallback, setSessionCookie } from '@/lib/auth';
 
 export async function GET(req: Request) {
+  // Never prerender: token exchange needs request cookies + deploy-time env.
+  await connection();
   try {
     const user = await handleOidcCallback(new URL(req.url));
     await setSessionCookie(await createSessionToken(user));

@@ -25,6 +25,8 @@ export function Dashboard() {
     queryFn: () => api.listSecrets(namespace),
     enabled: Boolean(namespace),
   });
+  // undefined while loading — only an explicit false disables creation.
+  const canCreate = secretsQuery.data?.canCreate;
 
   const pick = (ns: string) => {
     router.replace(`/?ns=${encodeURIComponent(ns)}`, { scroll: false });
@@ -35,10 +37,20 @@ export function Dashboard() {
       <div className="flex flex-wrap items-center gap-3">
         <NamespaceSelector value={namespace} onChange={pick} />
         <div className="flex-1" />
+        {canCreate === false && (
+          <span className="text-xs text-muted-foreground">
+            Namespace rules don&apos;t allow you to create secrets here.
+          </span>
+        )}
         <Button
           variant="primary"
           size="sm"
-          disabled={!namespace}
+          disabled={!namespace || canCreate === false}
+          title={
+            canCreate === false
+              ? `You are not allowed to create secrets in "${namespace}" (namespace rules in the krypton-access ConfigMap)`
+              : undefined
+          }
           onClick={() => namespace && router.push(`/secrets/${namespace}/new`)}
         >
           <IconPlus size={15} /> New secret

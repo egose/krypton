@@ -113,10 +113,10 @@ export function SecretDetail({ namespace, name }: Props) {
         <CardHeader>
           <CardTitle className="flex flex-wrap items-center gap-2">
             <span className="font-mono">{secret.name}</span>
-            <Badge variant="secondary" appearance="outline" size="sm">
+            <Badge variant="secondary" size="sm">
               {secret.namespace}
             </Badge>
-            <Badge variant="secondary" appearance="outline" size="sm">
+            <Badge variant="secondary" size="sm">
               {secret.type}
             </Badge>
             {secret.version > 0 && (
