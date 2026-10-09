@@ -55,7 +55,7 @@ jobs:
         RELEASE_TAG: ${{ github.ref_name }}
 
     - name: Build, scan, and publish verified image
-      uses: egose/actions/docker-build-push@2cddbcad7377a3b715a1f0bd3c5f0e4d448b2110
+      uses: egose/actions/docker-build-push@71efad841d4b7bb6a479984abacf7111ebd44a16
       env:
         RELEASE_TAG: ${{ github.ref_name }}
         REVISION: ${{ steps.release.outputs.revision }}
