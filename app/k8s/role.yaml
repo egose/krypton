@@ -1,0 +1,40 @@
+---
+# Namespace-scoped permissions (KRYPTON_SCOPE=namespace, the default).
+# Krypton can only manage secrets in its own namespace. Repeat the
+# RoleBinding in additional namespaces to grant per-namespace access.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: krypton
+  namespace: krypton
+  labels:
+    app.kubernetes.io/name: krypton
+rules:
+  # Core state: secrets incl. version snapshots (also Secrets)
+- apiGroups: ['']
+  resources: [secrets]
+  verbs: [get, list, watch, create, update, patch, delete]
+  # Namespace-level access rules (krypton-access ConfigMap)
+- apiGroups: ['']
+  resources: [configmaps]
+  verbs: [get, list, watch]
+  # Consumer restart (rollout via pod-template annotation patch)
+- apiGroups: [apps]
+  resources: [deployments, statefulsets, daemonsets]
+  verbs: [get, list, watch, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: krypton
+  namespace: krypton
+  labels:
+    app.kubernetes.io/name: krypton
+subjects:
+- kind: ServiceAccount
+  name: krypton
+  namespace: krypton
+roleRef:
+  kind: Role
+  name: krypton
+  apiGroup: rbac.authorization.k8s.io

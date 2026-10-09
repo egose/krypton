@@ -1,5 +1,8 @@
 node_modules
 
+# Local sandbox overrides (see sandbox/.env.example); never commit.
+sandbox/.env
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

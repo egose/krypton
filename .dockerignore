@@ -1,0 +1,12 @@
+# Keep the build context lean and secret-free.
+node_modules
+.next
+.git
+sandbox
+# Never bake local env into the image (SESSION_SECRET, OIDC secrets, ...).
+.env*
+app/.env*
+*.log
+npm-debug.log*
+.pnpm-debug.log*
+.DS_Store

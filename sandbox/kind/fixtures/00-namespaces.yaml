@@ -1,0 +1,16 @@
+---
+# Sandbox fixture namespaces.
+# Applied by `make seed` (kubectl apply, idempotent).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: krypton-test
+  labels:
+    app.kubernetes.io/part-of: krypton-sandbox
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: frontend-ns
+  labels:
+    app.kubernetes.io/part-of: krypton-sandbox

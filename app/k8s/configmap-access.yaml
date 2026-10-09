@@ -1,0 +1,22 @@
+# Namespace-level ownership fallback for SSO users that have no cluster identity.
+# Per-secret annotations (krypton.io/allowed-groups / allowed-users) override these.
+# Namespaces absent from this map are open to all authenticated users until restricted.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: krypton-access
+  namespace: krypton
+  labels:
+    app.kubernetes.io/name: krypton
+data:
+  access.json: |
+    {
+      "frontend-ns": {
+        "groups": ["AzureAD-Frontend-Team"],
+        "users": []
+      },
+      "production": {
+        "groups": ["dev-team", "database-admins"],
+        "users": ["alice@company.com"]
+      }
+    }

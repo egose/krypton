@@ -1,0 +1,27 @@
+# Non-sensitive Krypton configuration. Secrets (OIDC client secret,
+# session key) go in the krypton-oidc Secret — see the README.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: krypton-config
+  namespace: krypton
+  labels:
+    app.kubernetes.io/name: krypton
+data:
+  KRYPTON_SCOPE: namespace   # or 'cluster' with clusterrole.yaml applied
+  KRYPTON_NAMESPACES: '' # comma allowlist for cluster scope; empty = all
+  KRYPTON_HISTORY_LIMIT: '20'
+  KRYPTON_ETCD_ENCRYPTED: 'false' # set true once apiserver encryption (aescbc) is on
+  KRYPTON_IMPERSONATION: 'false' # true only if the API server trusts the same OIDC issuer
+  KRYPTON_ADMIN_GROUPS: krypton-admin
+  KRYPTON_ADMIN_USERS: ''
+  KRYPTON_ANNOTATION_PREFIX: krypton.io
+  KRYPTON_ACCESS_CONFIGMAP: krypton-access
+  OIDC_ISSUER: https://keycloak.example.com/realms/company
+  OIDC_ALLOW_HTTP: 'false'
+  OIDC_CLIENT_ID: krypton
+  OIDC_SCOPES: openid profile email groups
+  OIDC_GROUPS_CLAIM: groups
+  OIDC_USERNAME_CLAIM: email
+  OIDC_NAME_CLAIM: name
+  NEXT_PUBLIC_APP_URL: https://krypton.example.com

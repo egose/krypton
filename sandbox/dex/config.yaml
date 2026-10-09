@@ -1,0 +1,52 @@
+# Dex — sandbox OIDC provider for Krypton SSO testing.
+#
+# Static users/groups, in-memory storage, no database. All credentials below
+# are sandbox-only and must never be used outside local development.
+#
+# PORT COUPLING: `issuer` is the host-visible URL and embeds the host port.
+# Changing DEX_PORT requires changing this issuer AND the app's OIDC_ISSUER.
+issuer: http://localhost:5556/dex
+
+storage:
+  type: memory
+
+web:
+  http: 0.0.0.0:5556
+
+oauth2:
+  # Skip the "grant access?" screen for one-click sandbox logins.
+  skipApprovalScreen: true
+
+# Built-in username/password login backed by staticPasswords below.
+enablePasswordDB: true
+
+staticClients:
+- id: krypton
+  secret: krypton-sandbox-secret # pragma: allowlist secret
+  name: Krypton Sandbox
+  redirectURIs:
+  - http://localhost:3000/api/auth/callback
+
+# Everyone's password is `password`. Groups drive Krypton's annotation/
+# ConfigMap authorization (see ../kind/fixtures + ../README.md matrix).
+staticPasswords:
+- email: alice@company.com
+  hash: $2b$10$0i3QG6ZweYPTObej8BcDO.36g9dmw1hKEU7EYkSSxIU/MQEijCH1i   # pragma: allowlist secret
+  username: alice
+  userID: alice-sandbox
+  groups: [dev-team]
+- email: bob@company.com
+  hash: $2b$10$RTVpDyVdkOp/50tg6yal3utNhU9B2X7sLUue7ID.8usqtXbZEZqRK   # pragma: allowlist secret
+  username: bob
+  userID: bob-sandbox
+  groups: [other-team]
+- email: carol@company.com
+  hash: $2b$10$YRgGP7.LOFQhlHrNoIzzBOETbC97fm87mKMZlNcsE5qde1PpOQ2mW   # pragma: allowlist secret
+  username: carol
+  userID: carol-sandbox
+  groups: [frontend-team]
+- email: admin@company.com
+  hash: $2b$10$jZOOEr/867.c5zAHkd1bnO/K9xwR/WrovkC1tO.5UBFGfrpVWNxue   # pragma: allowlist secret
+  username: admin
+  userID: admin-sandbox
+  groups: [krypton-admin]
