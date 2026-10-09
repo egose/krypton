@@ -1,0 +1,18 @@
+# Namespace-level access fallback. Lives in the app's own namespace
+# (KRYPTON_NAMESPACE=krypton-test in sandbox mode); per-secret annotations
+# override these rules. krypton-test is deliberately absent (open by default).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: krypton-access
+  namespace: krypton-test
+  labels:
+    app.kubernetes.io/part-of: krypton-sandbox
+data:
+  access.json: |
+    {
+      "frontend-ns": {
+        "groups": ["frontend-team"],
+        "users": []
+      }
+    }

@@ -1,0 +1,82 @@
+---
+# Stateless by design: NO database, NO persistent volumes.
+# All state lives in Kubernetes Secret objects via the in-cluster API.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: krypton
+  namespace: krypton
+  labels:
+    app.kubernetes.io/name: krypton
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: krypton
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: krypton
+    spec:
+      serviceAccountName: krypton
+      # SA token auto-mounted for API auth; secret volumes would use tmpfs (RAM).
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: krypton
+        image: ghcr.io/egose/krypton:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 3000
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        envFrom:
+        - configMapRef:
+            name: krypton-config
+        - secretRef:
+            name: krypton-oidc
+        livenessProbe:
+          httpGet:
+            path: /api/config
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /api/config
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: [ALL]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: krypton
+  namespace: krypton
+  labels:
+    app.kubernetes.io/name: krypton
+spec:
+  selector:
+    app.kubernetes.io/name: krypton
+  ports:
+  - name: http
+    port: 80
+    targetPort: http

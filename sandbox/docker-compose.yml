@@ -1,0 +1,38 @@
+# Krypton sandbox — supporting services for local development.
+# Local Kubernetes itself (kind) is managed by the root Makefile, not compose:
+#   make up     # kind cluster + dex + fixtures
+#   make down   # stop dex (keeps kind cluster for fast iteration)
+#   make destroy
+#
+# NOTE: there is intentionally no docker-compose.prod.yml overlay here —
+# production Krypton deploys to Kubernetes via ../app/k8s/*.yaml, not compose.
+x-common-props: &common-props
+  restart: unless-stopped
+  networks: [krypton]
+
+services:
+  # ---------------------------------------------------------------------------
+  # Dex — lightweight OIDC provider for SSO login testing (static users/groups,
+  # in-memory storage, no database). Browser and host-run app both reach it via
+  # the host-visible issuer URL http://localhost:5556/dex.
+  # ---------------------------------------------------------------------------
+  dex:
+    <<: *common-props
+    container_name: krypton_dex
+    image: ghcr.io/dexidp/dex:v2.46.0
+    command: [dex, serve, /etc/dex/config.yaml]
+    ports:
+    # DEX_PORT must stay in sync with `issuer` in ./dex/config.yaml and the
+    # app's OIDC_ISSUER (the issuer URL embeds the host port).
+    - 127.0.0.1:${DEX_PORT:-5556}:5556   # local browser + host-run app only
+    volumes:
+    - ./dex/config.yaml:/etc/dex/config.yaml:ro
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:5556/dex/.well-known/openid-configuration]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+networks:
+  krypton:
+    driver: bridge

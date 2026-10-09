@@ -1,7 +1,8 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  /* standalone server for the Docker image (see /Dockerfile) */
+  output: 'standalone',
   experimental: {
     agentFeedback: true,
   },

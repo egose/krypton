@@ -1,0 +1,39 @@
+---
+# Cluster-wide permissions (KRYPTON_SCOPE=cluster) for a centralized
+# dashboard managing secrets across namespaces. Apply INSTEAD of (or in
+# addition to) role.yaml when you want multi-namespace management.
+# Narrow with KRYPTON_NAMESPACES="team-a,team-b" to allowlist namespaces.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: krypton
+  labels:
+    app.kubernetes.io/name: krypton
+rules:
+- apiGroups: ['']
+  resources: [secrets]
+  verbs: [get, list, watch, create, update, patch, delete]
+- apiGroups: ['']
+  resources: [configmaps]
+  verbs: [get, list, watch]
+- apiGroups: ['']
+  resources: [namespaces]
+  verbs: [get, list, watch]
+- apiGroups: [apps]
+  resources: [deployments, statefulsets, daemonsets]
+  verbs: [get, list, watch, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: krypton
+  labels:
+    app.kubernetes.io/name: krypton
+subjects:
+- kind: ServiceAccount
+  name: krypton
+  namespace: krypton
+roleRef:
+  kind: ClusterRole
+  name: krypton
+  apiGroup: rbac.authorization.k8s.io

@@ -1,0 +1,40 @@
+# Sample consumer for the "Restart consumers" flow: env-var injection
+# (needs a rollout to pick up changes) + a volume mount (kubelet syncs it).
+# Edit database-credentials in Krypton, hit Restart consumers, then:
+#   kubectl rollout history deploy/api-server -n krypton-test
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-server
+  namespace: krypton-test
+  labels:
+    app.kubernetes.io/part-of: krypton-sandbox
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-server
+  template:
+    metadata:
+      labels:
+        app: api-server
+    spec:
+      containers:
+      - name: api
+        image: nginx:1.27-alpine
+        ports:
+        - containerPort: 80
+        env:
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: database-credentials
+              key: password
+        volumeMounts:
+        - name: flags
+          mountPath: /etc/flags
+          readOnly: true
+      volumes:
+      - name: flags
+        secret:
+          secretName: feature-flags # pragma: allowlist secret
