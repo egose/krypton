@@ -1,0 +1,118 @@
+{{- if .Values.rbac.create -}}
+{{- $global := .Values.global | default dict -}}
+{{- $serviceAccountName := .Values.serviceAccountName | default ($global.serviceAccountName | default (include "_.serviceAccountName" .)) -}}
+{{- $isCluster := eq (.Values.rbac.scope | default "namespace") "cluster" -}}
+{{- if $isCluster }}
+# Cluster-wide permissions (KRYPTON_SCOPE=cluster) for a centralized dashboard
+# managing secrets across namespaces. Narrow with KRYPTON_NAMESPACES to
+# allowlist namespaces (see app/k8s/clusterrole.yaml).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "_.fullname" . }}
+  labels:
+    {{- include "_.labels" . | nindent 4 }}
+rules:
+- apiGroups: ['']
+  resources: [secrets]
+  verbs: [get, list, watch, create, update, patch, delete]
+- apiGroups: ['']
+  resources: [configmaps]
+  verbs: [get, list, watch]
+- apiGroups: ['']
+  resources: [namespaces]
+  verbs: [get, list, watch]
+- apiGroups: [apps]
+  resources: [deployments, statefulsets, daemonsets]
+  verbs: [get, list, watch, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "_.fullname" . }}
+  labels:
+    {{- include "_.labels" . | nindent 4 }}
+subjects:
+- kind: ServiceAccount
+  name: {{ $serviceAccountName }}
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ include "_.fullname" . }}
+  apiGroup: rbac.authorization.k8s.io
+{{- else }}
+# Namespace-scoped permissions (KRYPTON_SCOPE=namespace, the default). Krypton
+# can only manage secrets in its own namespace; add rbac.extraNamespaces to
+# grant per-namespace access elsewhere (see app/k8s/role.yaml).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "_.fullname" . }}
+  labels:
+    {{- include "_.labels" . | nindent 4 }}
+rules:
+  # Core state: secrets incl. version snapshots (also Secrets)
+- apiGroups: ['']
+  resources: [secrets]
+  verbs: [get, list, watch, create, update, patch, delete]
+  # Namespace-level access rules (krypton-access ConfigMap)
+- apiGroups: ['']
+  resources: [configmaps]
+  verbs: [get, list, watch]
+  # Consumer restart (rollout via pod-template annotation patch)
+- apiGroups: [apps]
+  resources: [deployments, statefulsets, daemonsets]
+  verbs: [get, list, watch, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "_.fullname" . }}
+  labels:
+    {{- include "_.labels" . | nindent 4 }}
+subjects:
+- kind: ServiceAccount
+  name: {{ $serviceAccountName }}
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: {{ include "_.fullname" . }}
+  apiGroup: rbac.authorization.k8s.io
+{{- range .Values.rbac.extraNamespaces }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "_.fullname" $ }}
+  namespace: {{ . }}
+  labels:
+    {{- include "_.labels" $ | nindent 4 }}
+rules:
+- apiGroups: ['']
+  resources: [secrets]
+  verbs: [get, list, watch, create, update, patch, delete]
+- apiGroups: ['']
+  resources: [configmaps]
+  verbs: [get, list, watch]
+- apiGroups: [apps]
+  resources: [deployments, statefulsets, daemonsets]
+  verbs: [get, list, watch, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "_.fullname" $ }}
+  namespace: {{ . }}
+  labels:
+    {{- include "_.labels" $ | nindent 4 }}
+subjects:
+- kind: ServiceAccount
+  name: {{ $serviceAccountName }}
+  namespace: {{ $.Release.Namespace }}
+roleRef:
+  kind: Role
+  name: {{ include "_.fullname" $ }}
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
+{{- end }}
+{{- end }}

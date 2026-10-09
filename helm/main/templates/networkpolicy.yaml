@@ -1,0 +1,92 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "_.fullname" . }}-default-deny
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "_.fullname" . }}-app-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Values.app.nameOverride | default "app" }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: {{ dig "service" "port" 3000 .Values.app }}
+      from:
+        {{- if .Values.networkPolicy.allowSameNamespace }}
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: {{ .Release.Name }}
+        {{- end }}
+        {{- if .Values.networkPolicy.allowOpenShiftIngress }}
+        - namespaceSelector:
+            matchLabels:
+              network.openshift.io/policy-group: ingress
+        {{- end }}
+        {{- with .Values.networkPolicy.app.ingressFrom }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+  policyTypes:
+    - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "_.fullname" . }}-app-egress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Values.app.nameOverride | default "app" }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  egress:
+    - to:
+        - namespaceSelector:
+            {{- toYaml .Values.networkPolicy.dns.namespaceSelector | nindent 12 }}
+          podSelector:
+            {{- toYaml .Values.networkPolicy.dns.podSelector | nindent 12 }}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    {{- if .Values.networkPolicy.app.allowKubeApiEgress }}
+    # Kubernetes API server (https://kubernetes.default.svc ClusterIP, not
+    # pod-selectable). Set allowKubeApiEgress: false and use extraEgress with
+    # the API server CIDRs for tighter rules.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+        - ipBlock:
+            cidr: ::/0
+      ports:
+        {{- range .Values.networkPolicy.app.kubeApiPorts }}
+        - protocol: TCP
+          port: {{ . }}
+        {{- end }}
+    {{- end }}
+    {{- range .Values.networkPolicy.app.idpEgressIpBlocks }}
+    - to:
+        - ipBlock:
+            {{- toYaml . | nindent 12 }}
+      ports:
+        - protocol: TCP
+          port: 443
+    {{- end }}
+    {{- with .Values.networkPolicy.app.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  policyTypes:
+    - Egress
+{{- end }}

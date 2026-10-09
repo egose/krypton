@@ -1,0 +1,81 @@
+# See https://helm.sh/docs/chart_template_guide/subcharts_and_globals/#global-chart-values
+global:
+  # env:            # merged into every subchart container, subchart `env` wins per key
+  #   Env: dev
+  env: {}
+  security:
+    allowInsecureImages: false
+  serviceAccountName:
+  imagePullSecrets: []
+
+nameOverride: ''
+fullnameOverride: ''
+
+app:
+  enabled: true
+  replicaCount: 2
+  image:
+    pullPolicy: IfNotPresent
+
+  nameOverride: app
+  fullnameOverride: ''
+
+  resources:
+    requests:
+      cpu: 100m         # 0.1 CPU core
+      memory: 256Mi      # 256 MB RAM
+    limits:
+      cpu: 1000m        # 1 CPU core
+      memory: 1Gi       # 1 GB RAM
+
+  # krypton takes no extra CLI args (`node app/server.js` standalone).
+  args: []
+
+  # Non-secret krypton configuration, e.g. KRYPTON_SCOPE, KRYPTON_NAMESPACES,
+  # KRYPTON_ADMIN_GROUPS, OIDC_ISSUER, OIDC_CLIENT_ID, OIDC_SCOPES,
+  # NEXT_PUBLIC_APP_URL. Secret values (OIDC_CLIENT_SECRET, SESSION_SECRET)
+  # belong in a Kubernetes Secret referenced by envSecretName. Full variable
+  # reference: app/.env.example.
+  env: {}
+  envSecretName: ''
+
+  # RBAC for the app ServiceAccount. Must match KRYPTON_SCOPE in `env` above:
+  # `namespace` (own namespace only, the default) or `cluster` (centralized
+  # multi-namespace dashboard, optionally narrowed with KRYPTON_NAMESPACES).
+  rbac:
+    create: true
+    scope: namespace
+
+  # Namespace-level ownership fallback ConfigMap (krypton-access / access.json).
+  # Per-secret annotations override these rules (see app/k8s/configmap-access.yaml).
+  accessConfig:
+    enabled: false
+
+networkPolicy:
+  enabled: true
+  allowSameNamespace: false
+  allowOpenShiftIngress: false
+  dns:
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: kube-system
+    podSelector:
+      matchLabels:
+        k8s-app: kube-dns
+  app:
+    ingressFrom: []
+    # Krypton calls the Kubernetes API (https://kubernetes.default.svc), which
+    # is a ClusterIP and cannot be selected by podSelector, so this allows TCP
+    # egress on the API ports. Override kubeApiPorts / extraEgress when the
+    # API server CIDRs are known and tighter rules are wanted.
+    allowKubeApiEgress: true
+    kubeApiPorts:
+    - 443
+    - 6443
+    # Standard NetworkPolicy cannot match DNS names. Add the CIDR ranges used
+    # by your IdP (OIDC discovery/token/userinfo over 443). Note this is only
+    # a restriction when allowKubeApiEgress above is false, which already
+    # permits 443 egress.
+    idpEgressIpBlocks: []
+    # - cidr: 203.0.113.10/32
+    extraEgress: []

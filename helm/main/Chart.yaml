@@ -1,0 +1,11 @@
+apiVersion: v2
+name: main
+description: Umbrella chart for krypton, the Kubernetes-native secret manager (Next.js app)
+type: application
+version: 0.1.0
+appVersion: 0.1.0
+dependencies:
+- name: app
+  version: 0.1.0
+  repository: file://../_app
+  condition: app.enabled

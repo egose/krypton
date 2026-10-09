@@ -1,0 +1,6 @@
+apiVersion: v2
+name: app
+description: krypton Next.js app (Kubernetes-native secret manager UI + API)
+type: application
+version: 0.1.0
+appVersion: 0.1.0
