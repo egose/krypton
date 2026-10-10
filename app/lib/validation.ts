@@ -6,7 +6,27 @@ export const k8sName = z
   .string()
   .min(1)
   .max(253)
-  .regex(/^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$/, 'must be a valid DNS subdomain name');
+  .regex(
+    /^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$/,
+    'must be a DNS subdomain name (lowercase letters, numbers, "-" or ".", e.g. database-credentials)',
+  );
+
+/**
+ * Best-effort conversion of free text into a valid K8s DNS-subdomain name:
+ * lowercase, spaces/underscores → dashes, other invalid chars → dashes,
+ * collapse repeats, trim leading/trailing "-" / ".".
+ */
+export function slugifyK8sName(value: string): string {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[\s_]+/g, '-')
+    .replace(/[^a-z0-9.-]+/g, '-')
+    .replace(/-{2,}/g, '-')
+    .replace(/\.{2,}/g, '.')
+    .slice(0, 253)
+    .replace(/^[.-]+|[.-]+$/g, '');
+}
 
 export const secretDataSchema = z
   .record(z.string(), z.string())

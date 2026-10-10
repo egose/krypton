@@ -135,7 +135,7 @@ export function SecretDetail({ namespace, name }: Props) {
           {secret.description && <p className="text-muted-foreground">{secret.description}</p>}
           <div className="grid gap-2 text-xs sm:grid-cols-2">
             <div>
-              <span className="text-muted-foreground">resourceVersion: </span>
+              <span className="text-muted-foreground">resource version: </span>
               <code className="font-mono">{secret.resourceVersion}</code>
             </div>
             <div>
