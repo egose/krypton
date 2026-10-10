@@ -13,22 +13,79 @@ import { Label } from '@egose/shadcn-theme/components/ui/label';
 import { Textarea } from '@egose/shadcn-theme/components/ui/textarea';
 import { Alert } from '@egose/shadcn-theme/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@egose/shadcn-theme/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@egose/shadcn-theme/components/ui/select';
 import { api, ApiError } from '@/lib/api-client';
 import type { SecretDetail } from '@/lib/secrets';
+import { slugifyK8sName } from '@/lib/validation';
 
 const formSchema = z.object({
+  // Slugify BEFORE validating so submit-without-blur (e.g. pressing Enter
+  // with "test secret" typed) still passes — the blur handler only fixes
+  // the visible input, while this fixes the validated/submitted value.
   name: z
     .string()
-    .min(1, 'Name is required')
-    .max(253)
-    .regex(/^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$/, 'Must be a DNS subdomain name'),
-  type: z.string().min(1).max(64),
+    .transform((s) => slugifyK8sName(s))
+    .pipe(
+      z
+        .string()
+        .min(1, 'Name is required')
+        .max(253)
+        .regex(
+          /^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$/,
+          'Use lowercase letters, numbers, "-" or "." (e.g. database-credentials)',
+        ),
+    ),
+  type: z.string().min(1, 'Type is required').max(64),
   description: z.string().max(1024),
   allowedGroups: z.string(),
   allowedUsers: z.string(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
+
+/** Built-in K8s secret types worth offering (service-account-token and
+ * bootstrap tokens are excluded — never created by hand). `keys` are the
+ * required data keys from the K8s API — scaffolded as rows on select and
+ * checked on submit so the API server never has to reject the write. */
+const SECRET_TYPE_PRESETS = [
+  { value: 'Opaque', hint: 'Arbitrary key-value pairs.', keys: [] },
+  {
+    value: 'kubernetes.io/basic-auth',
+    hint: 'Requires keys username + password (enforced by Kubernetes).',
+    keys: ['username', 'password'],
+  },
+  {
+    value: 'kubernetes.io/ssh-auth',
+    hint: 'Requires key ssh-privatekey (enforced by Kubernetes).',
+    keys: ['ssh-privatekey'],
+  },
+  {
+    value: 'kubernetes.io/tls',
+    hint: 'Requires keys tls.crt + tls.key (enforced by Kubernetes).',
+    keys: ['tls.crt', 'tls.key'],
+  },
+  {
+    value: 'kubernetes.io/dockerconfigjson',
+    hint: 'Requires key .dockerconfigjson (enforced by Kubernetes).',
+    keys: ['.dockerconfigjson'],
+  },
+  {
+    value: 'kubernetes.io/dockercfg',
+    hint: 'Requires key .dockercfg (enforced by Kubernetes).',
+    keys: ['.dockercfg'],
+  },
+] as const;
+const CUSTOM_TYPE = '__custom__';
+
+function requiredKeysForType(type: string | undefined): readonly string[] {
+  return SECRET_TYPE_PRESETS.find((p) => p.value === type)?.keys ?? [];
+}
 
 interface Entry {
   id: number;
@@ -73,6 +130,46 @@ export function SecretForm({ mode, namespace, initial }: Props) {
     },
   });
 
+  const nameField = form.register('name');
+
+  // Start in custom mode when editing/creating from a non-preset type.
+  // Local mirror of the type field (avoids form.watch, which trips
+  // react-hooks/incompatible-library) — kept in sync via the pickers below.
+  const [customType, setCustomType] = useState(
+    () => initial?.type != null && !SECRET_TYPE_PRESETS.some((p) => p.value === initial.type),
+  );
+  const [selectedType, setSelectedType] = useState(initial?.type ?? 'Opaque');
+  const typeHint = customType
+    ? 'Custom type — any string up to 64 characters.'
+    : (SECRET_TYPE_PRESETS.find((p) => p.value === selectedType)?.hint ?? 'Arbitrary key-value pairs.');
+
+  // Add empty rows for the type's required keys. Never removes user rows —
+  // only fully-untouched placeholder rows are dropped to keep things tidy.
+  const scaffoldRequiredKeys = (typeValue: string) => {
+    const missing = requiredKeysForType(typeValue).filter((k) => !entries.some((e) => e.key.trim() === k));
+    if (missing.length === 0) return;
+    const kept = entries.filter((e) => e.key.trim() !== '' || e.value !== '');
+    setEntries([...kept, ...missing.map((key) => ({ id: nextId++, key, value: '', revealed: false }))]);
+    toast.success(`Added required key(s) for "${typeValue}": ${missing.join(', ')}`);
+  };
+
+  const pickType = (v: string) => {
+    if (v === CUSTOM_TYPE) {
+      setCustomType(true);
+      form.setValue('type', '', { shouldDirty: true });
+    } else {
+      setCustomType(false);
+      setSelectedType(v);
+      form.setValue('type', v, { shouldDirty: true, shouldValidate: true });
+      scaffoldRequiredKeys(v);
+    }
+  };
+  const backToPresets = () => {
+    setCustomType(false);
+    setSelectedType('Opaque');
+    form.setValue('type', 'Opaque', { shouldDirty: true, shouldValidate: true });
+  };
+
   const payloadBytes = useMemo(() => {
     let size = 0;
     for (const e of entries) {
@@ -102,20 +199,30 @@ export function SecretForm({ mode, namespace, initial }: Props) {
       toast.error('Payload exceeds the Kubernetes 1MiB secret limit');
       return;
     }
+    // Updates preserve the live type server-side, so validate against that in
+    // edit mode; in create mode validate against the selected type.
+    const effectiveType = mode === 'create' ? values.type || 'Opaque' : (initial?.type ?? 'Opaque');
+    const missingKeys = requiredKeysForType(effectiveType).filter((k) => !(k in data));
+    if (missingKeys.length > 0) {
+      toast.error(`Missing required key(s) for "${effectiveType}": ${missingKeys.join(', ')}`);
+      return;
+    }
     setSaving(true);
     setConflict(false);
     try {
       if (mode === 'create') {
+        // Defensive: slugify again in case the user submits without blurring.
+        const name = slugifyK8sName(values.name);
         await api.createSecret(namespace, {
-          name: values.name.trim(),
+          name,
           type: values.type || 'Opaque',
           data,
           description: values.description,
           allowedGroups: parseCsv(values.allowedGroups),
           allowedUsers: parseCsv(values.allowedUsers),
         });
-        toast.success(`Secret "${values.name}" created`);
-        router.push(`/secrets/${namespace}/${values.name.trim()}`);
+        toast.success(`Secret "${name}" created`);
+        router.push(`/secrets/${namespace}/${name}`);
       } else {
         if (!initial) return;
         await api.updateSecret(namespace, initial.name, {
@@ -165,17 +272,65 @@ export function SecretForm({ mode, namespace, initial }: Props) {
               <Label htmlFor="name">Name</Label>
               <Input
                 id="name"
-                {...form.register('name')}
+                {...nameField}
                 disabled={mode === 'edit'}
                 placeholder="database-credentials"
+                onBlur={(e) => {
+                  if (mode === 'create') {
+                    const slugified = slugifyK8sName(e.target.value);
+                    if (slugified !== e.target.value) {
+                      form.setValue('name', slugified, { shouldValidate: true, shouldDirty: true });
+                    }
+                  }
+                  void nameField.onBlur(e);
+                }}
               />
               {form.formState.errors.name && (
                 <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
               )}
+              {mode === 'create' && !form.formState.errors.name && (
+                <p className="text-xs text-muted-foreground">
+                  Lowercase letters, numbers, &ldquo;-&rdquo; or &ldquo;.&rdquo; — spaces become dashes (e.g.
+                  &ldquo;test secret&rdquo; &rarr; &ldquo;test-secret&rdquo;).
+                </p>
+              )}
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="type">Type</Label>
-              <Input id="type" {...form.register('type')} placeholder="Opaque" />
+              {mode === 'edit' ? (
+                // Updates preserve live.type server-side — editing here would be silently ignored.
+                <Input id="type" value={initial?.type ?? 'Opaque'} disabled />
+              ) : customType ? (
+                <>
+                  <Input id="type" {...form.register('type')} placeholder="example.com/my-type" autoFocus />
+                  <button type="button" className="self-start text-xs font-medium underline" onClick={backToPresets}>
+                    ← back to presets
+                  </button>
+                </>
+              ) : (
+                <Select value={selectedType} onValueChange={pickType}>
+                  <SelectTrigger id="type" className="w-full">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SECRET_TYPE_PRESETS.map((p) => (
+                      <SelectItem key={p.value} value={p.value}>
+                        {p.value}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value={CUSTOM_TYPE}>Custom…</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+              {mode === 'create' && form.formState.errors.type && (
+                <p className="text-xs text-destructive">{form.formState.errors.type.message}</p>
+              )}
+              {mode === 'create' && !form.formState.errors.type && (
+                <p className="text-xs text-muted-foreground">{typeHint}</p>
+              )}
+              {mode === 'edit' && (
+                <p className="text-xs text-muted-foreground">Kept from the existing secret — not editable here.</p>
+              )}
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
