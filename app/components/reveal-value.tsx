@@ -1,13 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { IconCopy, IconEye, IconEyeOff } from '@tabler/icons-react';
+import { IconArrowsMaximize, IconCopy, IconEye, IconEyeOff } from '@tabler/icons-react';
 import { Button } from '@egose/shadcn-theme/components/ui/button';
 import { useClipboard } from '@egose/shadcn-theme/hooks/use-clipboard';
+import { ValueDialog } from './value-dialog';
 
 /** Values are masked by default — mirroring kubectl's redaction behavior. */
-export function RevealValue({ value }: { value: string }) {
+export function RevealValue({ value, keyName }: { value: string; keyName: string }) {
   const [revealed, setRevealed] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const { copy } = useClipboard();
 
   return (
@@ -24,9 +26,21 @@ export function RevealValue({ value }: { value: string }) {
       >
         {revealed ? <IconEyeOff size={14} /> : <IconEye size={14} />}
       </Button>
+      <Button
+        variant="secondary"
+        appearance="ghost"
+        size="icon-xs"
+        onClick={() => setExpanded(true)}
+        aria-label="Expand value"
+      >
+        <IconArrowsMaximize size={14} />
+      </Button>
       <Button variant="secondary" appearance="ghost" size="icon-xs" onClick={() => copy(value)} aria-label="Copy value">
         <IconCopy size={14} />
       </Button>
+      {expanded && (
+        <ValueDialog open onOpenChange={(o) => !o && setExpanded(false)} entryKey={keyName} value={value} mode="view" />
+      )}
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { IconEye, IconEyeOff, IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconArrowsMaximize, IconEye, IconEyeOff, IconPlus, IconTrash } from '@tabler/icons-react';
 import { Button } from '@egose/shadcn-theme/components/ui/button';
 import { Input } from '@egose/shadcn-theme/components/ui/input';
 import { Label } from '@egose/shadcn-theme/components/ui/label';
@@ -23,6 +23,7 @@ import {
 import { api, ApiError } from '@/lib/api-client';
 import type { SecretDetail } from '@/lib/secrets';
 import { slugifyK8sName } from '@/lib/validation';
+import { ValueDialog } from './value-dialog';
 
 const formSchema = z.object({
   // Slugify BEFORE validating so submit-without-blur (e.g. pressing Enter
@@ -118,6 +119,8 @@ export function SecretForm({ mode, namespace, initial }: Props) {
   );
   const [conflict, setConflict] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [openEntryId, setOpenEntryId] = useState<number | null>(null);
+  const openEntry = entries.find((e) => e.id === openEntryId) ?? null;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -361,43 +364,65 @@ export function SecretForm({ mode, namespace, initial }: Props) {
           <CardTitle>Key–value data</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
-          {entries.map((e) => (
-            <div key={e.id} className="flex items-center gap-2">
-              <Input
-                placeholder="KEY"
-                value={e.key}
-                onChange={(ev) => setEntry(e.id, { key: ev.target.value })}
-                className="w-48 font-mono"
-              />
-              <div className="relative flex-1">
+          {entries.map((e) => {
+            const lineCount = e.value === '' ? 0 : e.value.split('\n').length;
+            const multiline = lineCount > 1;
+            // Read-only when multiline: single-line inputs strip "\n" on edit
+            // and would clobber newlines saved via the expand dialog.
+            const displayValue = !multiline
+              ? e.value
+              : e.revealed
+                ? `${e.value.split('\n')[0]}  ⏎ ${lineCount} lines — expand to edit`
+                : `••••••••  ⏎ ${lineCount} lines — expand to view`;
+            return (
+              <div key={e.id} className="flex items-center gap-2">
                 <Input
-                  type={e.revealed ? 'text' : 'password'}
-                  placeholder="value"
-                  value={e.value}
-                  onChange={(ev) => setEntry(e.id, { value: ev.target.value })}
-                  className="pr-9 font-mono"
+                  placeholder="KEY"
+                  value={e.key}
+                  onChange={(ev) => setEntry(e.id, { key: ev.target.value })}
+                  className="w-48 font-mono"
                 />
-                <button
+                <div className="relative flex-1">
+                  <Input
+                    type={e.revealed || multiline ? 'text' : 'password'}
+                    placeholder="value"
+                    value={displayValue}
+                    onChange={(ev) => setEntry(e.id, { value: ev.target.value })}
+                    readOnly={multiline}
+                    className="pr-9 font-mono"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setEntry(e.id, { revealed: !e.revealed })}
+                    aria-label={e.revealed ? 'Hide' : 'Show'}
+                  >
+                    {e.revealed ? <IconEyeOff size={15} /> : <IconEye size={15} />}
+                  </button>
+                </div>
+                <Button
                   type="button"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  onClick={() => setEntry(e.id, { revealed: !e.revealed })}
-                  aria-label={e.revealed ? 'Hide' : 'Show'}
+                  variant="secondary"
+                  appearance="ghost"
+                  size="icon-sm"
+                  onClick={() => setOpenEntryId(e.id)}
+                  aria-label="Expand value"
                 >
-                  {e.revealed ? <IconEyeOff size={15} /> : <IconEye size={15} />}
-                </button>
+                  <IconArrowsMaximize size={15} />
+                </Button>
+                <Button
+                  type="button"
+                  variant="danger"
+                  appearance="ghost"
+                  size="icon-sm"
+                  onClick={() => removeEntry(e.id)}
+                  aria-label="Remove entry"
+                >
+                  <IconTrash size={15} />
+                </Button>
               </div>
-              <Button
-                type="button"
-                variant="danger"
-                appearance="ghost"
-                size="icon-sm"
-                onClick={() => removeEntry(e.id)}
-                aria-label="Remove entry"
-              >
-                <IconTrash size={15} />
-              </Button>
-            </div>
-          ))}
+            );
+          })}
           <div>
             <Button type="button" variant="secondary" appearance="outline" size="sm" onClick={addEntry}>
               <IconPlus size={15} /> Add entry
@@ -438,6 +463,17 @@ export function SecretForm({ mode, namespace, initial }: Props) {
           </div>
         </CardContent>
       </Card>
+
+      {openEntry && (
+        <ValueDialog
+          open
+          onOpenChange={(o) => !o && setOpenEntryId(null)}
+          entryKey={openEntry.key}
+          value={openEntry.value}
+          mode="edit"
+          onSave={(next) => setEntry(openEntry.id, { value: next })}
+        />
+      )}
 
       <div className="flex items-center gap-2">
         <Button type="submit" variant="primary" loading={saving} disabled={overLimit}>

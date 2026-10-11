@@ -169,7 +169,7 @@ export function SecretDetail({ namespace, name }: Props) {
             <div key={k} className="flex items-center gap-2">
               <code className="w-48 shrink-0 truncate font-mono text-xs font-medium">{k}</code>
               <div className="flex-1">
-                <RevealValue value={secret.data[k] ?? ''} />
+                <RevealValue value={secret.data[k] ?? ''} keyName={k} />
               </div>
             </div>
           ))}

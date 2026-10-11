@@ -95,7 +95,7 @@ export function VersionHistory({ namespace, name, currentKeys, onRestored }: Pro
                 {v.keys.map((k) => (
                   <div key={k} className="flex items-center gap-2">
                     <code className="w-40 shrink-0 truncate font-mono text-xs font-medium">{k}</code>
-                    <RevealValue value={v.data[k] ?? ''} />
+                    <RevealValue value={v.data[k] ?? ''} keyName={k} />
                   </div>
                 ))}
               </div>
